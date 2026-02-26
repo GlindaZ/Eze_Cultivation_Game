@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Eze Quest Tracker</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      padding: 24px;
+    }
+    .app {
+      width: 960px;
+      max-width: 100%;
+      background: #020617;
+      border-radius: 18px;
+      padding: 24px 24px 28px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.5);
+      border: 1px solid #1f2937;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 16px;
+    }
+    .title {
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+    .date {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    /* Energy bar */
+    .energy-card {
+      margin-bottom: 20px;
+      padding: 16px 18px;
+      border-radius: 14px;
+      background: radial-gradient(circle at top left, #1e293b, #020617);
+      border: 1px solid #111827;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .energy-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .energy-label {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+    .energy-value {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .bar {
+      position: relative;
+      width: 100%;
+      height: 18px;
+      border-radius: 999px;
+      background: #020617;
+      overflow: hidden;
+      border: 1px solid #1f2937;
+    }
+    .bar-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 40%;
+      background: linear-gradient(90deg, #38bdf8, #a855f7);
+      transition: width 0.25s ease;
+    }
+    .energy-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    /* Layout */
+    .columns {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .columns { grid-template-columns: 1fr; }
+    }
+
+    .column-card {
+      background: #020617;
+      border-radius: 14px;
+      border: 1px solid #111827;
+      padding: 14px 14px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .column-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .column-subtitle {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+
+    /* Tasks */
+    .task-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .task {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 6px 4px;
+      border-radius: 8px;
+      transition: background 0.15s ease;
+      font-size: 13px;
+    }
+    .task:hover {
+      background: rgba(148,163,184,0.08);
+    }
+    .task.completed {
+      opacity: 0.6;
+      text-decoration: line-through;
+    }
+    .task input[type="checkbox"] {
+      margin-top: 3px;
+      cursor: pointer;
+    }
+    .task-main {
+      flex: 1;
+    }
+    .task-title {
+      font-weight: 500;
+    }
+    .task-meta {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
+    .task-xp {
+      font-size: 11px;
+      color: #a5b4fc;
+      white-space: nowrap;
+    }
+
+    /* Add task form */
+    .add-task {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed #1f2937;
+    }
+    .add-task input[type="text"] {
+      flex: 1;
+      padding: 5px 8px;
+      border-radius: 999px;
+      border: 1px solid #1f2937;
+      background: #020617;
+      color: #e5e7eb;
+      font-size: 12px;
+    }
+    .add-task input::placeholder {
+      color: #6b7280;
+    }
+
+    /* Buttons */
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      background: #1d4ed8;
+      color: white;
+      font-weight: 500;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    button.secondary {
+      background: #111827;
+      color: #e5e7eb;
+    }
+    button:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
+    }
+    button.secondary:hover {
+      background: #020617;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div>
+        <div class="title">Eze’s Quest Log</div>
+        <div class="subtitle">Turn real-life assignments into game quests.</div>
+      </div>
+      <div class="date" id="todayDate"></div>
+    </div>
+
+    <div class="energy-card">
+      <div class="energy-top">
+        <div>
+          <div class="energy-label">Energy / Stamina</div>
+          <div class="energy-value"><span id="energyValue">40</span>/100</div>
+        </div>
+        <div class="energy-buttons">
+          <button class="secondary" id="resetEnergyBtn">Reset</button>
+        </div>
+      </div>
+      <div class="bar">
+        <div class="bar-fill" id="energyBar"></div>
+      </div>
+      <div class="energy-label">
+        Completing tasks restores energy. When bar is full, you “level up” your day.
+      </div>
+    </div>
+
+    <div class="columns">
+      <div class="column-card" data-list="daily">
+        <div class="column-title">Daily Quests</div>
+        <div class="column-subtitle">Small actions you want to touch almost every day.</div>
+        <ul class="task-list" id="dailyList"></ul>
+        <form class="add-task" data-list="daily">
+          <input type="text" placeholder="Add a daily quest…" />
+          <button type="submit">Add</button>
+        </form>
+      </div>
+
+      <div class="column-card" data-list="weekly">
+        <div class="column-title">Weekly Quests</div>
+        <div class="column-subtitle">Things to clear at least once this week.</div>
+        <ul class="task-list" id="weeklyList"></ul>
+        <form class="add-task" data-list="weekly">
+          <input type="text" placeholder="Add a weekly quest…" />
+          <button type="submit">Add</button>
+        </form>
+      </div>
+
+      <div class="column-card" data-list="main">
+        <div class="column-title">Main Storyline</div>
+        <div class="column-subtitle">Big projects broken into tiny steps.</div>
+        <ul class="task-list" id="mainList"></ul>
+        <form class="add-task" data-list="main">
+          <input type="text" placeholder="Add a main quest step…" />
+          <button type="submit">Add</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Date ----------
+    const dateEl = document.getElementById("todayDate");
+    const today = new Date();
+    dateEl.textContent = today.toLocaleDateString(undefined, {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+
+    // ---------- Energy ----------
+    let energy = 40;
+    const energyValueEl = document.getElementById("energyValue");
+    const energyBarEl = document.getElementById("energyBar");
+    const resetEnergyBtn = document.getElementById("resetEnergyBtn");
+
+    function renderEnergy() {
+      if (energy < 0) energy = 0;
+      if (energy > 100) energy = 100;
+      energyValueEl.textContent = energy;
+      energyBarEl.style.width = energy + "%";
+    }
+
+    function changeEnergy(delta) {
+      energy += delta;
+      renderEnergy();
+    }
+
+    resetEnergyBtn.addEventListener("click", () => {
+      energy = 40;
+      renderEnergy();
+    });
+
+    renderEnergy();
+
+    // ---------- Tasks ----------
+    const lists = {
+      daily: [
+        { title: "Check today’s schedule", xp: 5, note: "Open Quercus / calendar" },
+        { title: "15 minutes of reading", xp: 10, note: "Course reading or finance book" },
+        { title: "Tidy desk 5 minutes", xp: 5, note: "Just clear surface" },
+      ],
+      weekly: [
+        { title: "Review ETF / budget once", xp: 20, note: "Log in, just look, no panic" },
+        { title: "One drawing practice", xp: 20, note: "Any style, 20–30 minutes" },
+      ],
+      main: [
+        { title: "Break big assignment into 3–4 steps", xp: 15, note: "Write down Step 1 / 2 / 3" },
+        { title: "Do Step 1 of assignment", xp: 25, note: "e.g., read brief + highlight" },
+      ],
+    };
+
+    function renderList(listName) {
+      const ul = document.getElementById(listName + "List");
+      ul.innerHTML = "";
+      lists[listName].forEach((task, index) => {
+        const li = document.createElement("li");
+        li.className = "task";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) {
+            li.classList.add("completed");
+            changeEnergy(task.xp);
+          } else {
+            li.classList.remove("completed");
+            changeEnergy(-task.xp);
+          }
+        });
+
+        const mainDiv = document.createElement("div");
+        mainDiv.className = "task-main";
+
+        const titleSpan = document.createElement("div");
+        titleSpan.className = "task-title";
+        titleSpan.textContent = task.title;
+
+        const metaSpan = document.createElement("div");
+        metaSpan.className = "task-meta";
+        metaSpan.textContent = task.note || "";
+
+        const xpSpan = document.createElement("div");
+        xpSpan.className = "task-xp";
+        xpSpan.textContent = "+" + task.xp + " energy";
+
+        mainDiv.appendChild(titleSpan);
+        if (task.note) mainDiv.appendChild(metaSpan);
+
+        li.appendChild(checkbox);
+        li.appendChild(mainDiv);
+        li.appendChild(xpSpan);
+
+        ul.appendChild(li);
+      });
+    }
+
+    ["daily", "weekly", "main"].forEach((name) => renderList(name));
+
+    // ---------- Add task forms ----------
+    document.querySelectorAll(".add-task").forEach((form) => {
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const listName = form.getAttribute("data-list");
+        const input = form.querySelector("input[type='text']");
+        const value = input.value.trim();
+        if (!value) return;
+        // Default xp: daily=10, weekly=20, main=25
+        const defaultXp =
+          listName === "daily" ? 10 : listName === "weekly" ? 20 : 25;
+        lists[listName].push({
+          title: value,
+          xp: defaultXp,
+          note: "",
+        });
+        input.value = "";
+        renderList(listName);
+      });
+    });
+  </script>
+</body>
+</html>
