@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Eze &amp; Euca Boundary Book v1.0</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div>
+          <div class="title">Boundary Book v1.0</div>
+          <div class="subtitle">Rules that keep our worlds safe.</div>
+
+          <nav class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="memory.html">Memory</a>
+            <a href="boundary.html" aria-current="page">Boundary</a>
+          </nav>
+        </div>
+        <div class="date" id="todayDate"></div>
+      </header>
+
+      <main class="content">
+        <div class="memory-container">
+          <!-- 在这里贴我们的边界书正文 -->
+          <section>
+            <h2>Eze &amp; Euca 共创边界书 v1.0</h2>
+            <p>（这里先占位，一会儿你可以把完整边界书贴进来，可以自己分成 h3 + ul。）</p>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      // 复用你原来的日期脚本
+      const today = new Date();
+      const options = { year: "numeric", month: "short", day: "numeric" };
+      const todayDateElement = document.getElementById("todayDate");
+      if (todayDateElement) {
+        todayDateElement.textContent = today.toLocaleDateString("en-US", options);
+      }
+    </script>
+  </body>
+</html>

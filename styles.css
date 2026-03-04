@@ -274,3 +274,45 @@
       box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.6);
       font-weight: 600;
     }
+    
+    /* 边界书入口块 */
+    .boundary-link {
+      margin-top: 1.5rem;
+      padding: 0.85rem 1rem;
+      border-radius: 0.9rem;
+      background: rgba(15, 23, 42, 0.85);      /* 深色半透明小卡片 */
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+
+    /* 左边那个小标签 “Full text” */
+    .boundary-label {
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    /* 链接本体做成小药丸按钮 */
+    .boundary-pill {
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      background: rgba(15, 118, 110, 0.15);    /* 轻微偏青绿，你不喜欢可以换色 */
+      color: #e5e7eb;
+      border: 1px solid rgba(45, 212, 191, 0.5);
+      text-decoration: none;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      transition: all 0.18s ease-out;
+    }
+
+    /* hover 效果，让它看起来真的能点 */
+    .boundary-pill:hover {
+      background: rgba(45, 212, 191, 0.22);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.6);
+    }
