@@ -316,3 +316,106 @@
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(15, 23, 42, 0.6);
     }
+
+    /* ===== Boundary Book 专用样式 ===== */
+
+    .boundary-document {
+      margin-top: 0.75rem;
+    }
+
+    .boundary-main-title {
+      font-size: 1.4rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .boundary-meta {
+      font-size: 0.9rem;
+      color: #9ca3af;
+      margin-bottom: 1.25rem;
+    }
+
+    .boundary-section {
+      margin-top: 1.4rem;
+    }
+
+    .boundary-section h3 {
+      font-size: 1rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .boundary-section ul {
+      margin-left: 1.2rem;
+      margin-bottom: 0.25rem;
+    }
+
+    /* 签名区 */
+
+    .boundary-section.signatures {
+      margin-top: 1.8rem;
+      padding-top: 1rem;
+      border-top: 1px dashed rgba(148, 163, 184, 0.5);
+    }
+
+    .signatures-list {
+      list-style: none;
+      padding-left: 0;
+      display: flex;
+      gap: 1.5rem;
+      margin: 0.5rem 0 0.75rem;
+    }
+
+    .boundary-note {
+      font-size: 0.85rem;
+      color: #9ca3af;
+    }
+
+    .signature-block {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .signature-title {
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 1rem;
+    }
+
+    .signature-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+    }
+
+    .signature-item {
+      min-width: 180px;
+    }
+
+    .signature-label {
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 0.5rem;
+    }
+
+    .signature-image-eze {
+      display: block;
+      max-width: 110px; /* 根据你签名的宽度调 */
+      height: auto;
+      filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
+    }
+
+    .signature-image-euca {
+      display: block;
+      max-width: 200px; /* 根据你签名的宽度调 */
+      height: auto;
+      filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
+    }
+
+    .signature-placeholder {
+      font-size: 0.85rem;
+      font-style: italic;
+      color: rgba(255, 255, 255, 0.4);
+      padding-top: 1.2rem;
+    }
