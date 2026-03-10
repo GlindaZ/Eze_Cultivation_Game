@@ -222,5 +222,162 @@
       });
     });
   </script>
+
+  <script>
+    // ===== Pomodoro timer logic =====
+
+    (function () {
+      const FOCUS_DURATION = 25 * 60; // 25 分鐘
+      const BREAK_DURATION = 5 * 60;  // 5 分鐘
+
+      let currentMode = 'focus'; // 'focus' or 'break'
+      let remainingSeconds = FOCUS_DURATION;
+      let isRunning = false;
+      let intervalId = null;
+      let cycleCount = 1;
+
+      const minutesEl = document.getElementById('pomodoro-minutes');
+      const secondsEl = document.getElementById('pomodoro-seconds');
+      const modeLabelEl = document.getElementById('pomodoro-mode-label');
+      const cycleLabelEl = document.getElementById('pomodoro-cycle-label');
+      const startBtn = document.getElementById('pomodoro-start');
+      const pauseBtn = document.getElementById('pomodoro-pause');
+      const resetBtn = document.getElementById('pomodoro-reset');
+
+      if (!minutesEl || !secondsEl || !modeLabelEl || !startBtn) {
+        // 頁面上沒有番茄鐘區塊，就直接返回
+        return;
+      }
+
+      function formatTime(sec) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return {
+          m: String(m).padStart(2, '0'),
+          s: String(s).padStart(2, '0'),
+        };
+      }
+
+      function updateDisplay() {
+        const { m, s } = formatTime(remainingSeconds);
+        minutesEl.textContent = m;
+        secondsEl.textContent = s;
+
+        // 標題也一起更新（讓你切出去也能看到剩餘時間）
+        const prefix = currentMode === 'focus' ? 'FOCUS' : 'BREAK';
+        document.title = `[${prefix}] ${m}:${s} · Eze’s Quest Log`;
+      }
+
+      function updateModeLabel() {
+        modeLabelEl.textContent = currentMode === 'focus' ? 'FOCUS' : 'BREAK';
+
+        modeLabelEl.classList.remove('pomodoro-mode-focus', 'pomodoro-mode-break');
+        if (currentMode === 'focus') {
+          modeLabelEl.classList.add('pomodoro-mode-focus');
+        } else {
+          modeLabelEl.classList.add('pomodoro-mode-break');
+        }
+
+        cycleLabelEl.textContent = `Cycle ${cycleCount}`;
+      }
+
+      function startTimer() {
+        if (isRunning) return;
+        isRunning = true;
+
+        startBtn.disabled = true;
+        pauseBtn.disabled = false;
+        resetBtn.disabled = false;
+
+        intervalId = setInterval(() => {
+          remainingSeconds--;
+
+          if (remainingSeconds <= 0) {
+            // 當前階段結束
+            clearInterval(intervalId);
+            intervalId = null;
+            isRunning = false;
+
+            // 簡單的小提示：標題前面加個 🔔
+            const oldTitle = document.title;
+            document.title = '🔔 Time is up! · Eze’s Quest Log';
+            setTimeout(() => {
+              document.title = oldTitle;
+            }, 3000);
+
+            // 自動切換模式
+            if (currentMode === 'focus') {
+              // 專注 → break
+              currentMode = 'break';
+              remainingSeconds = BREAK_DURATION;
+            } else {
+              // break → 專注，cycle +1
+              currentMode = 'focus';
+              remainingSeconds = FOCUS_DURATION;
+              cycleCount++;
+            }
+
+            updateModeLabel();
+            updateDisplay();
+
+            // 自動開始下一輪
+            startTimer();
+            return;
+          }
+
+          updateDisplay();
+        }, 1000);
+      }
+
+      function pauseTimer() {
+        if (!isRunning) return;
+        isRunning = false;
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+        startBtn.disabled = false;
+        startBtn.textContent = 'Resume';
+        pauseBtn.disabled = true;
+      }
+
+      function resetTimer() {
+        isRunning = false;
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+
+        currentMode = 'focus';
+        remainingSeconds = FOCUS_DURATION;
+        cycleCount = 1;
+
+        startBtn.disabled = false;
+        startBtn.textContent = 'Start';
+        pauseBtn.disabled = true;
+        resetBtn.disabled = true;
+
+        updateModeLabel();
+        updateDisplay();
+      }
+
+      startBtn.addEventListener('click', () => {
+        startTimer();
+      });
+
+      pauseBtn.addEventListener('click', () => {
+        pauseTimer();
+      });
+
+      resetBtn.addEventListener('click', () => {
+        resetTimer();
+      });
+
+      // 初始化顯示
+      updateModeLabel();
+      updateDisplay();
+    })();
+  </script>
+
 </body>
 </html>
