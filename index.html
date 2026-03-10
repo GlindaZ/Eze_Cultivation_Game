@@ -23,6 +23,32 @@
       <div class="date" id="todayDate"></div>
     </div>
 
+    <section class="card pomodoro-card">
+      <h2 class="pomodoro-title">Focus Timer</h2>
+      <p class="pomodoro-subtitle">25 min focus · 5 min break</p>
+
+      <div class="pomodoro-display">
+        <span id="pomodoro-minutes">25</span>
+        <span class="pomodoro-colon">:</span>
+        <span id="pomodoro-seconds">00</span>
+      </div>
+
+      <div class="pomodoro-mode">
+        <span id="pomodoro-mode-label" class="pomodoro-mode-focus">FOCUS</span>
+        <span id="pomodoro-cycle-label" class="pomodoro-cycle-label">Cycle 1</span>
+      </div>
+
+      <div class="pomodoro-controls">
+        <button id="pomodoro-start">Start</button>
+        <button id="pomodoro-pause" disabled>Pause</button>
+        <button id="pomodoro-reset" disabled>Reset</button>
+      </div>
+
+      <p class="pomodoro-hint">
+        开始后就是 25 分钟专注时间，结束后自动切 5 分钟 break。
+      </p>
+    </section>
+
     <div class="energy-card">
       <div class="energy-top">
         <div>
