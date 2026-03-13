@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eze’s Day Planner</title>
+  <link rel="stylesheet" href="planner.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="panel sidebar">
+      <h1>Eze’s Day Planner</h1>
+      <div class="date" id="todayLabel"></div>
+
+      <div class="top-actions">
+        <button id="clearTodayBtn">Clear today</button>
+        <button id="loadTemplateBtn">Load class template</button>
+      </div>
+
+      <p class="palette-title">Categories</p>
+      <div class="palette" id="palette"></div>
+    </aside>
+
+    <main class="panel planner-shell">
+      <div class="planner-header">
+        <div>
+          <h2>Today’s timetable</h2>
+          <p>Drag a category into the schedule. Move it. Resize it. Add a note.</p>
+        </div>
+        <div class="planner-actions">
+          <span class="pill" id="saveHint">Auto-saved</span>
+        </div>
+      </div>
+
+      <div class="planner-body">
+        <div class="time-col" id="timeCol"></div>
+        <div class="grid-wrap" id="gridWrap">
+          <div class="timeline-drop-hint"></div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="panel editor">
+      <h3>Selected block</h3>
+      <div class="editor-empty" id="editorEmpty">
+        Click a block to edit its note, time, or category.
+      </div>
+
+      <div id="editorForm" hidden>
+        <div class="field">
+          <label for="editCategory">Category</label>
+          <select id="editCategory"></select>
+        </div>
+
+        <div class="field">
+          <label for="editNote">Note</label>
+          <textarea id="editNote" placeholder="ARC367, reading, lecture hall, bring model..."></textarea>
+        </div>
+
+        <div class="mini-row">
+          <div class="field">
+            <label for="editStart">Start</label>
+            <input id="editStart" type="time" />
+          </div>
+          <div class="field">
+            <label for="editEnd">End</label>
+            <input id="editEnd" type="time" />
+          </div>
+        </div>
+
+        <div class="editor-actions">
+          <button id="duplicateBtn">Duplicate</button>
+          <button id="deleteBtn" class="danger">Delete</button>
+        </div>
+      </div>
+
+      <div class="footer-note">
+        V1 saves automatically in your browser.  
+        “Load class template” currently adds a sample schedule you can replace later with your real classes.
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const CATEGORY_CONFIG = {
+      Class:      { color: getCssVar('--class') },
+      Assignment: { color: getCssVar('--assignment') },
+      Reading:    { color: getCssVar('--reading') },
+      Studio:     { color: getCssVar('--studio') },
+      Break:      { color: getCssVar('--break') },
+      Meal:       { color: getCssVar('--meal') },
+      Travel:     { color: getCssVar('--travel') },
+      Other:      { color: getCssVar('--other') },
+    };
+
+    const DAY_START = 8 * 60;   // 08:00
+    const DAY_END = 23 * 60;    // 23:00
+    const MIN_DURATION = 30;    // 30 mins
+    const SNAP_MINUTES = 15;
+    const HOUR_HEIGHT = 96;
+    const PX_PER_MINUTE = HOUR_HEIGHT / 60;
+    const STORAGE_KEY = 'eze_day_planner_v1';
+    const TEMPLATE_KEY = 'eze_day_planner_template_v1';
+
+    const paletteEl = document.getElementById('palette');
+    const timeColEl = document.getElementById('timeCol');
+    const gridWrapEl = document.getElementById('gridWrap');
+    const todayLabelEl = document.getElementById('todayLabel');
+    const clearTodayBtn = document.getElementById('clearTodayBtn');
+    const loadTemplateBtn = document.getElementById('loadTemplateBtn');
+    const saveHintEl = document.getElementById('saveHint');
+
+    const editorEmptyEl = document.getElementById('editorEmpty');
+    const editorFormEl = document.getElementById('editorForm');
+    const editCategoryEl = document.getElementById('editCategory');
+    const editNoteEl = document.getElementById('editNote');
+    const editStartEl = document.getElementById('editStart');
+    const editEndEl = document.getElementById('editEnd');
+    const duplicateBtn = document.getElementById('duplicateBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+
+    let events = loadTodayEvents();
+    let selectedId = null;
+    let dragState = null; // { type, id, startY, originalStart, originalEnd }
+
+    init();
+
+    function init() {
+      renderTodayLabel();
+      renderPalette();
+      renderTimeColumn();
+      renderHourLines();
+      renderEditorCategoryOptions();
+      renderEvents();
+      updateEditor();
+
+      attachGridDropEvents();
+      attachEditorEvents();
+
+      clearTodayBtn.addEventListener('click', clearToday);
+      loadTemplateBtn.addEventListener('click', loadTemplateIntoToday);
+    }
+
+    function getCssVar(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    function renderTodayLabel() {
+      const now = new Date();
+      const options = {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+      };
+      todayLabelEl.textContent = now.toLocaleDateString('en-CA', options);
+    }
+
+    function renderPalette() {
+      paletteEl.innerHTML = '';
+
+      Object.keys(CATEGORY_CONFIG).forEach((category) => {
+        const el = document.createElement('div');
+        el.className = 'task-template';
+        el.draggable = true;
+        el.dataset.category = category;
+
+        el.innerHTML = `
+          <span class="task-dot" style="background:${CATEGORY_CONFIG[category].color}"></span>
+          <span>${category}</span>
+        `;
+
+        el.addEventListener('dragstart', (e) => {
+          e.dataTransfer.setData('text/plain', JSON.stringify({
+            category,
+            color: CATEGORY_CONFIG[category].color
+          }));
+        });
+
+        paletteEl.appendChild(el);
+      });
+    }
+
+    function renderTimeColumn() {
+      timeColEl.innerHTML = '';
+      for (let hour = DAY_START / 60; hour <= DAY_END / 60; hour++) {
+        const slot = document.createElement('div');
+        slot.className = 'time-slot';
+        slot.textContent = formatHourLabel(hour);
+        timeColEl.appendChild(slot);
+      }
+    }
+
+    function renderHourLines() {
+      const existing = gridWrapEl.querySelectorAll('.hour-line');
+      existing.forEach(el => el.remove());
+
+      const totalHours = (DAY_END - DAY_START) / 60;
+      for (let i = 0; i <= totalHours; i++) {
+        const line = document.createElement('div');
+        line.className = 'hour-line';
+        line.style.top = `${i * HOUR_HEIGHT}px`;
+        gridWrapEl.appendChild(line);
+      }
+    }
+
+    function attachGridDropEvents() {
+      gridWrapEl.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        gridWrapEl.classList.add('drag-over');
+      });
+
+      gridWrapEl.addEventListener('dragleave', () => {
+        gridWrapEl.classList.remove('drag-over');
+      });
+
+      gridWrapEl.addEventListener('drop', (e) => {
+        e.preventDefault();
+        gridWrapEl.classList.remove('drag-over');
+
+        const raw = e.dataTransfer.getData('text/plain');
+        if (!raw) return;
+
+        let data;
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          return;
+        }
+
+        const rect = gridWrapEl.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const startMinute = snapToStep(pixelToMinute(y), SNAP_MINUTES, DAY_START, DAY_END - MIN_DURATION);
+
+        const newEvent = {
+          id: cryptoRandomId(),
+          category: data.category || 'Other',
+          note: '',
+          color: CATEGORY_CONFIG[data.category]?.color || CATEGORY_CONFIG.Other.color,
+          startMinute,
+          endMinute: startMinute + 60,
+        };
+
+        events.push(newEvent);
+        selectedId = newEvent.id;
+        persistAndRender();
+      });
+    }
+
+    function attachEditorEvents() {
+      editCategoryEl.addEventListener('change', () => {
+        const ev = getSelectedEvent();
+        if (!ev) return;
+        ev.category = editCategoryEl.value;
+        ev.color = CATEGORY_CONFIG[ev.category].color;
+        persistAndRender();
+      });
+
+      editNoteEl.addEventListener('input', () => {
+        const ev = getSelectedEvent();
+        if (!ev) return;
+        ev.note = editNoteEl.value;
+        persistAndRender(false);
+      });
+
+      editStartEl.addEventListener('change', () => {
+        const ev = getSelectedEvent();
+        if (!ev) return;
+        const start = timeStringToMinute(editStartEl.value);
+        if (start == null) return;
+
+        let duration = ev.endMinute - ev.startMinute;
+        ev.startMinute = clampMinute(start);
+        ev.endMinute = clampMinute(Math.max(ev.startMinute + MIN_DURATION, ev.startMinute + duration));
+        if (ev.endMinute > DAY_END) {
+          ev.endMinute = DAY_END;
+          ev.startMinute = Math.max(DAY_START, ev.endMinute - duration);
+        }
+        persistAndRender();
+      });
+
+      editEndEl.addEventListener('change', () => {
+        const ev = getSelectedEvent();
+        if (!ev) return;
+        const end = timeStringToMinute(editEndEl.value);
+        if (end == null) return;
+
+        ev.endMinute = clampMinute(Math.max(ev.startMinute + MIN_DURATION, end));
+        persistAndRender();
+      });
+
+      duplicateBtn.addEventListener('click', () => {
+        const ev = getSelectedEvent();
+        if (!ev) return;
+
+        const duration = ev.endMinute - ev.startMinute;
+        const start = clampMinute(Math.min(DAY_END - duration, ev.startMinute + 30));
+        const clone = {
+          ...ev,
+          id: cryptoRandomId(),
+          startMinute: start,
+          endMinute: start + duration,
+        };
+
+        events.push(clone);
+        selectedId = clone.id;
+        persistAndRender();
+      });
+
+      deleteBtn.addEventListener('click', () => {
+        if (!selectedId) return;
+        events = events.filter(ev => ev.id !== selectedId);
+        selectedId = null;
+        persistAndRender();
+      });
+    }
+
+    function renderEditorCategoryOptions() {
+      editCategoryEl.innerHTML = '';
+      Object.keys(CATEGORY_CONFIG).forEach((category) => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        editCategoryEl.appendChild(option);
+      });
+    }
+
+    function renderEvents() {
+      gridWrapEl.querySelectorAll('.event-block').forEach(el => el.remove());
+
+      events
+        .slice()
+        .sort((a, b) => a.startMinute - b.startMinute)
+        .forEach((event) => {
+          const block = document.createElement('div');
+          block.className = 'event-block' + (event.id === selectedId ? ' selected' : '');
+          block.dataset.id = event.id;
+          block.style.top = `${minuteToPixel(event.startMinute)}px`;
+          block.style.height = `${Math.max(32, minuteToPixel(event.endMinute) - minuteToPixel(event.startMinute))}px`;
+          block.style.background = event.color;
+
+          block.innerHTML = `
+            <div class="event-title">${escapeHtml(event.category)}</div>
+            <div class="event-note">${escapeHtml(event.note || '')}</div>
+            <div class="event-time">${formatMinuteLabel(event.startMinute)} – ${formatMinuteLabel(event.endMinute)}</div>
+            <div class="resize-handle"></div>
+          `;
+
+          block.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('resize-handle')) {
+              startResize(e, event.id);
+              return;
+            }
+            startMove(e, event.id);
+          });
+
+          block.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectedId = event.id;
+            renderEvents();
+            updateEditor();
+          });
+
+          gridWrapEl.appendChild(block);
+        });
+
+      gridWrapEl.addEventListener('click', clearSelectionOnGridClick, { once: true });
+    }
+
+    function clearSelectionOnGridClick(e) {
+      if (e.target.closest('.event-block')) return;
+      selectedId = null;
+      renderEvents();
+      updateEditor();
+    }
+
+    function startMove(e, id) {
+      e.preventDefault();
+      const ev = events.find(item => item.id === id);
+      if (!ev) return;
+
+      selectedId = id;
+      renderEvents();
+      updateEditor();
+
+      dragState = {
+        type: 'move',
+        id,
+        startY: e.clientY,
+        originalStart: ev.startMinute,
+        originalEnd: ev.endMinute,
+      };
+
+      document.addEventListener('mousemove', handleDrag);
+      document.addEventListener('mouseup', stopDrag);
+    }
+
+    function startResize(e, id) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const ev = events.find(item => item.id === id);
+      if (!ev) return;
+
+      selectedId = id;
+      renderEvents();
+      updateEditor();
+
+      dragState = {
+        type: 'resize',
+        id,
+        startY: e.clientY,
+        originalStart: ev.startMinute,
+        originalEnd: ev.endMinute,
+      };
+
+      document.addEventListener('mousemove', handleDrag);
+      document.addEventListener('mouseup', stopDrag);
+    }
+
+    function handleDrag(e) {
+      if (!dragState) return;
+      const ev = events.find(item => item.id === dragState.id);
+      if (!ev) return;
+
+      const deltaY = e.clientY - dragState.startY;
+      const deltaMin = snapDeltaToStep(pixelToMinuteDelta(deltaY), SNAP_MINUTES);
+
+      if (dragState.type === 'move') {
+        const duration = dragState.originalEnd - dragState.originalStart;
+        let nextStart = clampMinute(dragState.originalStart + deltaMin);
+        nextStart = Math.min(nextStart, DAY_END - duration);
+        ev.startMinute = nextStart;
+        ev.endMinute = nextStart + duration;
+      } else if (dragState.type === 'resize') {
+        let nextEnd = dragState.originalEnd + deltaMin;
+        nextEnd = Math.max(dragState.originalStart + MIN_DURATION, nextEnd);
+        nextEnd = Math.min(DAY_END, nextEnd);
+        ev.endMinute = nextEnd;
+      }
+
+      renderEvents();
+      updateEditor();
+    }
+
+    function stopDrag() {
+      if (!dragState) return;
+      dragState = null;
+
+      document.removeEventListener('mousemove', handleDrag);
+      document.removeEventListener('mouseup', stopDrag);
+
+      saveTodayEvents();
+      flashSaved();
+    }
+
+    function updateEditor() {
+      const ev = getSelectedEvent();
+
+      if (!ev) {
+        editorEmptyEl.hidden = false;
+        editorFormEl.hidden = true;
+        return;
+      }
+
+      editorEmptyEl.hidden = true;
+      editorFormEl.hidden = false;
+
+      editCategoryEl.value = ev.category;
+      editNoteEl.value = ev.note;
+      editStartEl.value = minuteToTimeString(ev.startMinute);
+      editEndEl.value = minuteToTimeString(ev.endMinute);
+    }
+
+    function persistAndRender(updateEditorPanel = true) {
+      saveTodayEvents();
+      renderEvents();
+      if (updateEditorPanel) updateEditor();
+      flashSaved();
+    }
+
+    function flashSaved() {
+      saveHintEl.textContent = 'Saved';
+      saveHintEl.style.opacity = '1';
+      clearTimeout(flashSaved._timer);
+      flashSaved._timer = setTimeout(() => {
+        saveHintEl.textContent = 'Auto-saved';
+      }, 800);
+    }
+
+    function clearToday() {
+      if (!confirm('Clear today’s timetable?')) return;
+      events = [];
+      selectedId = null;
+      persistAndRender();
+    }
+
+    function loadTemplateIntoToday() {
+      const template = loadTemplate();
+      events = template.map(item => ({ ...item, id: cryptoRandomId() }));
+      selectedId = null;
+      persistAndRender();
+    }
+
+    function loadTodayEvents() {
+      const store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      const todayKey = getTodayKey();
+      return Array.isArray(store[todayKey]) ? store[todayKey] : [];
+    }
+
+    function saveTodayEvents() {
+      const store = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      store[getTodayKey()] = events;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    }
+
+    function loadTemplate() {
+      const existing = JSON.parse(localStorage.getItem(TEMPLATE_KEY) || 'null');
+      if (Array.isArray(existing) && existing.length) return existing;
+
+      const fallback = [
+        makeTemplateEvent('Class', 'Morning class', 10 * 60, 12 * 60),
+        makeTemplateEvent('Meal', 'Lunch', 12 * 60, 13 * 60),
+        makeTemplateEvent('Class', 'Afternoon class', 14 * 60, 16 * 60),
+      ];
+      localStorage.setItem(TEMPLATE_KEY, JSON.stringify(fallback));
+      return fallback;
+    }
+
+    function makeTemplateEvent(category, note, startMinute, endMinute) {
+      return {
+        id: cryptoRandomId(),
+        category,
+        note,
+        color: CATEGORY_CONFIG[category].color,
+        startMinute,
+        endMinute,
+      };
+    }
+
+    function getSelectedEvent() {
+      return events.find(ev => ev.id === selectedId) || null;
+    }
+
+    function getTodayKey() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function minuteToPixel(minute) {
+      return (minute - DAY_START) * PX_PER_MINUTE;
+    }
+
+    function pixelToMinute(px) {
+      return DAY_START + px / PX_PER_MINUTE;
+    }
+
+    function pixelToMinuteDelta(px) {
+      return px / PX_PER_MINUTE;
+    }
+
+    function snapToStep(value, step, min, max) {
+      const snapped = Math.round(value / step) * step;
+      return Math.min(max, Math.max(min, snapped));
+    }
+
+    function snapDeltaToStep(value, step) {
+      return Math.round(value / step) * step;
+    }
+
+    function clampMinute(minute) {
+      return Math.max(DAY_START, Math.min(DAY_END, minute));
+    }
+
+    function formatHourLabel(hour24) {
+      const suffix = hour24 >= 12 ? 'PM' : 'AM';
+      const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+      return `${hour12}:00 ${suffix}`;
+    }
+
+    function formatMinuteLabel(totalMinute) {
+      const hour24 = Math.floor(totalMinute / 60);
+      const minute = totalMinute % 60;
+      const suffix = hour24 >= 12 ? 'PM' : 'AM';
+      const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+      return `${hour12}:${String(minute).padStart(2, '0')} ${suffix}`;
+    }
+
+    function minuteToTimeString(totalMinute) {
+      const h = Math.floor(totalMinute / 60);
+      const m = totalMinute % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    function timeStringToMinute(str) {
+      if (!str || !str.includes(':')) return null;
+      const [h, m] = str.split(':').map(Number);
+      if (Number.isNaN(h) || Number.isNaN(m)) return null;
+      return h * 60 + m;
+    }
+
+    function cryptoRandomId() {
+      return 'ev-' + Math.random().toString(36).slice(2, 10);
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+  </script>
+</body>
+</html>
