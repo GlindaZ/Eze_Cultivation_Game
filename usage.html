@@ -46,7 +46,8 @@
       const dateEl = document.getElementById("usageDate");
 
       try {
-        const res = await fetch(`${API_BASE}/api/today-usage`);
+        const tzOffsetMinutes = new Date().getTimezoneOffset();
+        const res = await fetch(`${API_BASE}/api/today-usage?tzOffsetMinutes=${tzOffsetMinutes}`);
         const data = await res.json();
 
         dateEl.textContent = data.date || "Today";
